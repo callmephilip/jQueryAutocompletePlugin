@@ -17,9 +17,11 @@
 $.fn.extend({
 	autocomplete: function(urlOrData, options) {
 		var isUrl = typeof urlOrData == "string";
+		var isFunction = typeof urlOrData == "function";
 		options = $.extend({}, $.Autocompleter.defaults, {
 			url: isUrl ? urlOrData : null,
-			data: isUrl ? null : urlOrData,
+			data: isUrl && !isFunction ? null : urlOrData,
+			method : isFunction ? urlOrData : null,
 			delay: isUrl ? $.Autocompleter.defaults.delay : 10,
 			max: options && !options.scroll ? 10 : 150
 		}, options);
@@ -245,7 +247,8 @@ $.Autocompleter = function(input, options) {
 			v += options.multipleSeparator;
 		}
 
-		$input.val(v);
+		//$input.val(v);
+
 		hideResultsNow();
 		$input.trigger("result", [selected.data, selected.value]);
 		return true;
@@ -360,6 +363,17 @@ $.Autocompleter = function(input, options) {
 		if (!options.matchCase)
 			term = term.toLowerCase();
 		var data = cache.load(term);
+		
+		if(options.method){
+			$.when(options.method(term)).done(function(d){
+				success(term,d);
+			}).fail(function(){
+				failure(term);
+			});
+
+			return;
+		}
+
 		// recieve the cached data
 		if (data && data.length) {
 			success(term, data);
@@ -482,7 +496,7 @@ $.Autocompleter.Cache = function(options) {
 	}
 
 	function populate(){
-		if( !options.data ) return false;
+		if( !options.data || (typeof options.data === 'function') ) return false;
 		// track the matches
 		var stMatchSets = {},
 			nullData = 0;
